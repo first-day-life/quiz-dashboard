@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Quiz Dashboard</title>
+<meta name="robots" content="noindex, nofollow">
+<meta name="description" content="Private quiz analytics dashboard.">
+<link rel="stylesheet" href="assets/style.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js" defer></script>
+<script src="assets/app.js" defer></script>
+</head>
+<body>
+<main class="wrap">
+  <header class="top">
+    <div>
+      <h1 id="title">Quiz dashboard</h1>
+      <p class="sub"><span id="range">Loading…</span> · last pulled <time id="pulled">—</time></p>
+    </div>
+    <div class="actions">
+      <button id="refresh" type="button">Refresh</button>
+      <a id="pull-now" class="link" hidden href="https://github.com/" target="_blank" rel="noopener" title="Runs the GitHub Action that re-pulls from Octane (takes ~1 min, then press Refresh)">Pull from Octane now ↗</a>
+    </div>
+  </header>
+  <p id="status" class="status" role="status" aria-live="polite"></p>
+
+  <section id="lock" class="card lock" hidden aria-labelledby="lock-h">
+    <h2 id="lock-h">🔒 Locked</h2>
+    <p id="lock-msg"></p>
+    <form id="lock-form" class="lock-form">
+      <label for="lock-key" class="sr-only">Key or full link</label>
+      <input id="lock-key" type="password" autocomplete="off" spellcheck="false" placeholder="Paste key or full link">
+      <button type="submit">Unlock</button>
+    </form>
+    <p id="lock-pulled" class="muted small"></p>
+  </section>
+
+  <div id="content" hidden>
+
+  <p id="lede" class="lede"></p>
+
+  <section class="hero" aria-labelledby="hero-label">
+    <p id="hero-label" class="eyebrow">Start rate</p>
+    <p class="hero-num" id="hero-num">—</p>
+    <p class="muted" id="hero-sub">starts ÷ unique viewers</p>
+  </section>
+
+  <section class="card" aria-labelledby="daily-h">
+    <h2 id="daily-h">Start rate, day by day</h2>
+    <p class="muted small">Starts ÷ unique viewers per day. Days with no viewers are left as gaps.</p>
+    <div class="chart-box"><canvas id="daily" role="img" aria-label="Line chart of daily start rate"></canvas></div>
+    <details class="table-view"><summary>Show as table</summary><div id="daily-table"></div></details>
+  </section>
+
+  <details class="all" id="all-metrics">
+    <summary><h2>All metrics</h2></summary>
+
+    <section class="tiles" id="tiles" aria-label="Key numbers"></section>
+
+    <section class="card" aria-labelledby="funnel-h">
+      <h2 id="funnel-h">Funnel</h2>
+      <p class="muted small">One row per step. Audience versions of a step are summed. "Still in quiz" = starts minus everyone who has dropped so far.</p>
+      <div id="funnel"></div>
+    </section>
+
+    <section class="card" aria-labelledby="left-h">
+      <h2 id="left-h">Pages people left on</h2>
+      <div id="left" class="scroll"></div>
+    </section>
+
+    <section class="card" aria-labelledby="branch-h">
+      <h2 id="branch-h">Branch logic check</h2>
+      <p class="muted small">Sessions that moved sequentially from one audience version of a step to a different version of the <em>same</em> step, which means no jump rule caught them. This should be empty.</p>
+      <div id="branch"></div>
+    </section>
+
+    <section class="card" aria-labelledby="answers-h">
+      <h2 id="answers-h">Quiz answers</h2>
+      <div class="filters" role="radiogroup" aria-label="Audience" id="aud-filter"></div>
+      <div id="answers" class="answers"></div>
+    </section>
+
+    <section class="card" aria-labelledby="bd-h">
+      <h2 id="bd-h">Breakdown</h2>
+      <div class="filters" role="radiogroup" aria-label="Dimension" id="bd-filter"></div>
+      <div id="breakdown" class="scroll"></div>
+    </section>
+  </details>
+
+  </div>
+
+  <footer class="muted small">Data: Octane AI analytics API, re-pulled hourly by a GitHub Action. Rates use Octane's approximate unique-viewer count.</footer>
+</main>
+</body>
+</html>

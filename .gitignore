@@ -1,0 +1,7 @@
+.env
+.env.*
+octane_reports/
+__pycache__/
+.DS_Store
+_site/
+build/

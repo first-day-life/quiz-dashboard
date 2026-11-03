@@ -1,0 +1,83 @@
+name: Refresh quiz data
+
+on:
+  schedule:
+    - cron: "7 * * * *"        # hourly, at :07
+  workflow_dispatch:
+    inputs:
+      from:
+        description: "First day YYYY-MM-DD (blank = today minus DAYS-1)"
+        required: false
+      to:
+        description: "Last day YYYY-MM-DD (blank = today, America/Chicago)"
+        required: false
+  push:
+    branches: [main]
+    paths-ignore: ["data/**"]   # code/page changes redeploy; data commits deploy from the pull run below
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+concurrency:
+  group: refresh
+  cancel-in-progress: false
+
+jobs:
+  pull:
+    if: github.event_name != 'push'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Pull from Octane and reshape
+        env:
+          OCTANE_API_KEY: ${{ secrets.OCTANE_API_KEY }}
+          QUIZ_NAME: ${{ vars.QUIZ_NAME }}
+          QUIZ_ID: ${{ vars.QUIZ_ID }}
+          DAYS: ${{ vars.DAYS }}
+          TZ_NAME: ${{ vars.TZ_NAME }}
+          FROM: ${{ inputs.from }}
+          TO: ${{ inputs.to }}
+        run: python3 scripts/pull.py          # plaintext → build/ (never committed)
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Encrypt for publishing
+        env:
+          DASHBOARD_KEY: ${{ secrets.DASHBOARD_KEY }}
+        run: node scripts/encrypt.mjs          # build/ → data/bundle.enc + data/meta.json {pulled_at}
+      - name: Commit data
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/bundle.enc data/meta.json
+          git diff --cached --quiet && { echo "no changes"; exit 0; }
+          git commit -m "data: refresh $(date -u +%Y-%m-%dT%H:%MZ)"
+          git push
+
+  deploy:
+    needs: pull
+    if: always() && (needs.pull.result == 'success' || needs.pull.result == 'skipped')
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main              # picks up the data commit the pull job just pushed
+      - name: Assemble site
+        run: |
+          mkdir _site
+          cp -r index.html assets data _site/
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+      - id: deployment
+        uses: actions/deploy-pages@v4
