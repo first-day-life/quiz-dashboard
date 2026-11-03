@@ -75,7 +75,7 @@
       render();
       const now = state.data.meta.pulled_at;
       setStatus(prev && prev === now
-        ? `Already showing the latest pull (${ago(now)}). The Action re-pulls hourly; use "Pull from Octane now" to force one.`
+        ? `Already showing the latest pull (${ago(now)}). New data is pulled at 7 AM and 3 PM Central; use "Pull from Octane now" to get it sooner.`
         : `Updated. Data pulled ${ago(now)}.`);
       return true;
     } catch (e) {

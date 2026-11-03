@@ -61,6 +61,7 @@ h2 { font-size: 1.05rem; margin: 0 0 4px; }
 .sub, .muted { color: var(--text-secondary); }
 .small { font-size: .85rem; }
 .sub { margin: 4px 0 0; }
+.note { margin: 2px 0 0; color: var(--text-muted); }
 .top { display: flex; flex-wrap: wrap; gap: 12px; justify-content: space-between; align-items: flex-start; }
 .actions { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
 button, .chip {

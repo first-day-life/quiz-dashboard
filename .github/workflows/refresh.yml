@@ -2,7 +2,9 @@ name: Refresh quiz data
 
 on:
   schedule:
-    - cron: "7 * * * *"        # hourly, at :07
+    # 7 AM and 3 PM America/Chicago. Cron is UTC-only, so it fires at both the CST and CDT
+    # offsets (12/13 and 20/21 UTC) and the gate job below lets only the one that is 7 or 15 local through.
+    - cron: "0 12,13,20,21 * * *"
   workflow_dispatch:
     inputs:
       from:
@@ -25,8 +27,21 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  gate:
+    runs-on: ubuntu-latest
+    outputs:
+      run: ${{ steps.check.outputs.run }}
+    steps:
+      - id: check
+        run: |
+          if [ "${{ github.event_name }}" != "schedule" ]; then echo "run=true" >> "$GITHUB_OUTPUT"; exit 0; fi
+          h=$(TZ=America/Chicago date +%H)
+          echo "Chicago hour: $h"
+          if [ "$h" = "07" ] || [ "$h" = "15" ]; then echo "run=true" >> "$GITHUB_OUTPUT"; else echo "run=false" >> "$GITHUB_OUTPUT"; fi
+
   pull:
-    if: github.event_name != 'push'
+    needs: gate
+    if: github.event_name != 'push' && needs.gate.outputs.run == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -62,7 +77,7 @@ jobs:
 
   deploy:
     needs: pull
-    if: always() && (needs.pull.result == 'success' || needs.pull.result == 'skipped')
+    if: always() && (needs.pull.result == 'success' || github.event_name == 'push')
     runs-on: ubuntu-latest
     environment:
       name: github-pages

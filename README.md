@@ -1,6 +1,6 @@
 # Octane quiz dashboard (v2 Branch Logic)
 
-A static dashboard for First Day's Octane AI quiz, hosted on GitHub Pages. A GitHub Action re-pulls the data every hour. It replaces the earlier Claude dashboard.
+A static dashboard for First Day's Octane AI quiz, hosted on GitHub Pages. A GitHub Action re-pulls the data twice a day, at 7 AM and 3 PM Central. It replaces the earlier Claude dashboard.
 
 **This repo and site are public, but the data is not readable.** The Action encrypts it (AES-256-GCM) before committing, and the page only decrypts it with the key in the private link:
 
@@ -9,7 +9,7 @@ https://first-day-life.github.io/quiz-dashboard/#k=<DASHBOARD_KEY>
 ```
 
 ```
-GitHub Action (hourly + manual)                                GitHub Pages (static, public)
+GitHub Action (7 AM + 3 PM CT, + manual)                                GitHub Pages (static, public)
   OCTANE_API_KEY, DASHBOARD_KEY (repo secrets)                   index.html + assets/
   scripts/pull.py → build/*.json (plaintext, never committed)    fetch data/bundle.enc?t=…
   scripts/encrypt.mjs → data/bundle.enc + data/meta.json ─commit─▶ decrypt in browser with #k= → render
@@ -19,7 +19,7 @@ GitHub Action (hourly + manual)                                GitHub Pages (sta
 - The key sits after `#` in the link. Browsers never send that part to the server, so it doesn't show up in GitHub's logs or in referrers. Without it, the page shows a lock screen where someone can paste a key.
 - **Anyone who has the link can see the dashboard.** Share it like a password. To revoke access, rotate the key (see below) and send the new link to the people who should still have it.
 
-- **The Action** (`.github/workflows/refresh.yml`) runs at :07 every hour and whenever you start it by hand. It pulls the last 14 days (America/Chicago), reshapes the reports, encrypts them, commits `data/bundle.enc` and `data/meta.json` (`pulled_at`), and redeploys Pages.
+- **The Action** (`.github/workflows/refresh.yml`) runs at 7 AM and 3 PM America/Chicago and whenever you start it by hand. Cron only runs in UTC, so it fires at both the CST and CDT offsets, and a gate job lets through only the run that falls at 7 or 15 Chicago time. That keeps the times right across daylight saving. It pulls the last 14 days (America/Chicago), reshapes the reports, encrypts them, commits `data/bundle.enc` and `data/meta.json` (`pulled_at`), and redeploys Pages.
 - **The Refresh button** reloads the most recently committed JSON and updates "last pulled". A static page can't call Octane itself: the browser would block the request (CORS) and the key would be exposed. So the Action is the only thing that calls Octane. **Pull from Octane now ↗** opens the workflow page, where you can click *Run workflow*. Press Refresh about a minute later.
 - The Octane key lives only in the repo secret. It is never in client JS and never committed (`.env` is gitignored).
 
@@ -49,7 +49,7 @@ Set these under *Settings → Secrets and variables → Actions → **Variables*
 | `DAYS` | `14` | Window length, ending today. 92 days at most (Octane's cap for funnel, answers and paths). |
 | `TZ_NAME` | `America/Chicago` | Timezone for the day boundaries. |
 
-For a one-off custom range, *Run workflow* also takes `from` and `to` dates (YYYY-MM-DD). The next hourly run goes back to the default window.
+For a one-off custom range, *Run workflow* also takes `from` and `to` dates (YYYY-MM-DD). The next scheduled run goes back to the default window.
 
 The page title is in `index.html` (`<title>` and `<h1>`).
 
@@ -62,7 +62,7 @@ node scripts/encrypt.mjs          # → data/bundle.enc + data/meta.json (Node 1
 python3 -m http.server 8000       # open http://localhost:8000/#k=<DASHBOARD_KEY>
 ```
 
-Don't commit a locally generated `data/` unless you want to overwrite the published data. The Action replaces it within the hour anyway.
+Don't commit a locally generated `data/` unless you want to overwrite the published data. The next scheduled run replaces it anyway.
 
 `octane_quiz_reports.py` is the older CLI that pulls every report into CSV and HTML. It still works for ad-hoc digging.
 
