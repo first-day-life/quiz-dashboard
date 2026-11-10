@@ -32,12 +32,30 @@ jobs:
     outputs:
       run: ${{ steps.check.outputs.run }}
     steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: data/meta.json
+          sparse-checkout-cone-mode: false
       - id: check
+        # GitHub often starts scheduled runs hours late, so don't gate on the current hour.
+        # Instead: run if the last pull predates the most recent 7 AM / 3 PM Chicago slot.
         run: |
           if [ "${{ github.event_name }}" != "schedule" ]; then echo "run=true" >> "$GITHUB_OUTPUT"; exit 0; fi
-          h=$(TZ=America/Chicago date +%H)
-          echo "Chicago hour: $h"
-          if [ "$h" = "07" ] || [ "$h" = "15" ]; then echo "run=true" >> "$GITHUB_OUTPUT"; else echo "run=false" >> "$GITHUB_OUTPUT"; fi
+          python3 - <<'PY' >> "$GITHUB_OUTPUT"
+          import json, datetime as dt, sys
+          from zoneinfo import ZoneInfo
+          tz = ZoneInfo("America/Chicago")
+          now = dt.datetime.now(tz)
+          slots = [dt.datetime.combine(now.date() - dt.timedelta(days=d), dt.time(h), tz) for d in (0, 1) for h in (15, 7)]
+          slot = max(s for s in slots if s <= now)
+          try:
+              pulled = dt.datetime.fromisoformat(json.load(open("data/meta.json"))["pulled_at"].replace("Z", "+00:00"))
+          except Exception:
+              pulled = None
+          due = pulled is None or pulled < slot
+          print(f"now={now:%Y-%m-%d %H:%M %Z} slot={slot:%Y-%m-%d %H:%M %Z} pulled={pulled} due={due}", file=sys.stderr)
+          print(f"run={'true' if due else 'false'}")
+          PY
 
   pull:
     needs: gate
